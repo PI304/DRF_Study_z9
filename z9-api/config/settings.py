@@ -48,11 +48,11 @@ THIRD_PARTY_APPS = [
     "django_extensions",
 ]
 
-Z9_APPS = ["user",]
+Z9_APPS = ["user"]
 
 AUTH_USER_MODEL = "user.User"
 
-INSTALLED_APPS = DJANGO_CORE_APPS + THIRD_PARTY_APPS + CHATMATE_APPS
+INSTALLED_APPS = DJANGO_CORE_APPS + THIRD_PARTY_APPS + Z9_APPS
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -62,6 +62,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "config.middleware.AddHeaders"
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -86,7 +87,7 @@ TEMPLATES = [
 REST_FRAMEWORK = {
     # "EXCEPTION_HANDLER": "config.exceptions.custom_exception_handler",
     "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticated",
+        "rest_framework.permissions.AllowAny",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -94,6 +95,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_RENDERER_CLASSES": [
         "djangorestframework_camel_case.render.CamelCaseJSONRenderer",
+        'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     "DEFAULT_PARSER_CLASSES": [
         "rest_framework.parsers.JSONParser",
@@ -103,7 +105,7 @@ REST_FRAMEWORK = {
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
-    "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
+    # "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
 }
 
 # Database
