@@ -1,5 +1,5 @@
 from .serializers import UserSerializer
-from rest_framework import generics
+from rest_framework import generics, filters
 from user.models import User
 from rest_framework.response import Response
 from rest_framework import status
@@ -15,6 +15,8 @@ class UserList(generics.ListCreateAPIView):
     # is_active = True 인 entry 만 반환
     queryset = User.objects.filter(is_active=True).all()
     serializer_class = UserSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["nickname", "email"]
 
 
 class UserDetail(generics.RetrieveUpdateDestroyAPIView):
