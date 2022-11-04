@@ -1,6 +1,13 @@
 from rest_framework.views import exception_handler
 from rest_framework import exceptions
 from django.http import Http404
+from rest_framework.exceptions import APIException
+
+
+class PasswordNotMatch(APIException):
+    status_code = 400
+    default_detail = "Passwords does not match."
+    default_code = "bad_request"
 
 
 def custom_exception_handler(exc, context):
@@ -25,6 +32,8 @@ def custom_exception_handler(exc, context):
         elif isinstance(exc, exceptions.PermissionDenied):
             customized_response = {"code": response.status_code, "details": exc.detail}
         elif isinstance(exc, exceptions.NotAuthenticated):
+            customized_response = {"code": response.status_code, "details": exc.detail}
+        elif isinstance(exc, PasswordNotMatch):
             customized_response = {"code": response.status_code, "details": exc.detail}
         else:
             customized_response = {
