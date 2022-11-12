@@ -25,15 +25,13 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = UserSerializer
 
     def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop("partial", False)
         user = self.get_object()
         serializer = self.get_serializer(user, data=request.data, partial=partial)
 
         serializer.is_valid(raise_exception=True)
 
-        serializer.save(
-            updated_at=datetime.now()
-        )
+        serializer.save(updated_at=datetime.now())
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, *args, **kwargs):
@@ -43,6 +41,3 @@ class UserDetail(generics.RetrieveUpdateDestroyAPIView):
         serializer = UserSerializer(instance)
 
         return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-
