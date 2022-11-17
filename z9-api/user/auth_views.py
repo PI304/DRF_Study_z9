@@ -33,7 +33,7 @@ class BasicSignUpView(APIView):
         operation_summary="Sign up",
         responses={
             201: openapi.Response("user", UserSerializer),
-            400: "Passwords doesn't match"
+            400: "Passwords doesn't match",
         },
     )
     def post(self, request, *args, **kwargs):
@@ -66,7 +66,7 @@ class BasicSignInView(APIView):
         responses={
             201: openapi.Response("user", UserSerializer),
             401: "Incorrect password",
-            404: "User not found"
+            404: "User not found",
         },
     )
     def post(self, request, *args, **kwargs):
@@ -105,9 +105,7 @@ class SecessionView(APIView):
 
     @swagger_auto_schema(
         operation_summary="Leave",
-        responses={
-            200: openapi.Response("user", UserSerializer)
-        },
+        responses={200: openapi.Response("user", UserSerializer)},
     )
     def update(self, request, *args, **kwargs):
         user = UserServices.deactivate_user(request.user)
@@ -128,11 +126,15 @@ class CheckDuplicateUsernameView(APIView):
                 schema=openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     properties={
-                        "email": openapi.Schema(type=openapi.TYPE_STRING, description="email"),
-                    }
-                )
-            ), 409: "Provided email already exists."}
-        )
+                        "email": openapi.Schema(
+                            type=openapi.TYPE_STRING, description="email"
+                        ),
+                    },
+                ),
+            ),
+            409: "Provided email already exists.",
+        },
+    )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
 
@@ -173,8 +175,8 @@ class PasswordResetView(APIView):
         operation_summary="Reset password to random string sent to user email",
         responses={
             404: "User with the provided email does not exist",
-            500: "Failed to send email. Try again later."
-        }
+            500: "Failed to send email. Try again later.",
+        },
     )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
@@ -212,7 +214,7 @@ class EmailVerification(APIView):
         operation_summary="Verify code sent to user email when signing up",
         responses={
             500: "Failed to send email. Try again later or try with a valid email."
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
@@ -234,7 +236,9 @@ class EmailVerification(APIView):
             return Response(status=status.HTTP_200_OK)
         elif success == 0:
             return Response(
-                {"details": "Failed to send email. Try again later or try with a valid email."},
+                {
+                    "details": "Failed to send email. Try again later or try with a valid email."
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
@@ -247,7 +251,7 @@ class EmailConfirmation(APIView):
         responses={
             400: "No cookies attached",
             409: "Verification code does not match",
-        }
+        },
     )
     def post(self, request, *args, **kwargs):
         if "email_verification_code" in request.COOKIES:
