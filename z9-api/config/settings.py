@@ -47,6 +47,7 @@ THIRD_PARTY_APPS = [
     "rest_framework",
     "django_extensions",
     "rest_framework_simplejwt",
+    "drf_yasg",
 ]
 
 Z9_APPS = ["user"]
@@ -95,6 +96,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.BasicAuthentication",
     ),
     "DEFAULT_RENDERER_CLASSES": [
+        "config.renderer.CustomRenderer",
         "djangorestframework_camel_case.render.CamelCaseJSONRenderer",
         "rest_framework.renderers.BrowsableAPIRenderer",
     ],
@@ -105,6 +107,7 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_VERSIONING_CLASS": "rest_framework.versioning.AcceptHeaderVersioning",
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 2,
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
     "DEFAULT_FILTER_BACKENDS": ("django_filters.rest_framework.DjangoFilterBackend",),
 }
@@ -172,6 +175,15 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
+
+# Swagger settings
+SWAGGER_SETTINGS = {
+    "DEFAULT_INFO": "config.urls.api_info",
+    "USE_SESSION_AUTH": False,
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}
+    },
+}
 
 # Email BACKEND
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"

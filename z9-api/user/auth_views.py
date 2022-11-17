@@ -1,12 +1,14 @@
 from django.contrib.auth.models import update_last_login
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.shortcuts import get_object_or_404
-from rest_framework.decorators import permission_classes
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
-from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, NotFound
 from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework_simplejwt.exceptions import InvalidToken
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 
 from config.authentication import RefreshTokenAuthentication
 from config.exceptions import PasswordNotMatch
@@ -27,6 +29,13 @@ class BasicSignUpView(APIView):
     renderer_classes = [CustomRenderer]
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Sign up",
+        responses={
+            201: openapi.Response("user", UserSerializer),
+            400: "Passwords doesn't match"
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         password = request.data.get("password")
@@ -52,11 +61,23 @@ class BasicSignInView(APIView):
     renderer_classes = [CustomRenderer]
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Sign In",
+        responses={
+            201: openapi.Response("user", UserSerializer),
+            401: "Incorrect password",
+            404: "User not found"
+        },
+    )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
         password = request.data.get("password")
 
-        user = get_object_or_404(User, email=email)
+        try:
+            user = get_object_or_404(User, email=email)
+        except Http404:
+            raise NotFound("User does not exist")
+
         if not check_password(password, user.password):
             raise AuthenticationFailed("Incorrect password")
 
@@ -70,7 +91,9 @@ class BasicSignInView(APIView):
             status=status.HTTP_200_OK,
         )
         res.set_cookie(
-            settings.SIMPLE_JWT["AUTH_COOKIE"], token["refresh"], max_age=60 * 60 * 24 * 14
+            settings.SIMPLE_JWT["AUTH_COOKIE"],
+            token["refresh"],
+            max_age=60 * 60 * 24 * 14,
         )  # 2 weeks
 
         return res
@@ -80,6 +103,12 @@ class SecessionView(APIView):
     renderer_classes = [CustomRenderer]
     serializer = UserSerializer
 
+    @swagger_auto_schema(
+        operation_summary="Leave",
+        responses={
+            200: openapi.Response("user", UserSerializer)
+        },
+    )
     def update(self, request, *args, **kwargs):
         user = UserServices.deactivate_user(request.user)
         serializer = UserSerializer(user)
@@ -91,6 +120,19 @@ class CheckDuplicateUsernameView(APIView):
     renderer_classes = [CustomRenderer]
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Check if there's duplicate email (username)",
+        responses={
+            200: openapi.Response(
+                description="No duplicates",
+                schema=openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    properties={
+                        "email": openapi.Schema(type=openapi.TYPE_STRING, description="email"),
+                    }
+                )
+            ), 409: "Provided email already exists."}
+        )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
 
@@ -127,9 +169,20 @@ class PasswordResetView(APIView):
     renderer_classes = [CustomRenderer]
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Reset password to random string sent to user email",
+        responses={
+            404: "User with the provided email does not exist",
+            500: "Failed to send email. Try again later."
+        }
+    )
     def post(self, request, *args, **kwargs):
-        email = request.data.get('email')
-        user = get_object_or_404(User, email=email)
+        email = request.data.get("email")
+
+        try:
+            user = get_object_or_404(User, email=email)
+        except Http404:
+            raise NotFound("User with the provided email does not exist")
 
         new_password = UserServices.generate_random_code(3, 8)
         user.set_password(new_password)
@@ -146,7 +199,8 @@ class PasswordResetView(APIView):
             return Response(status=status.HTTP_200_OK)
         elif success == 0:
             return Response(
-                {"details": "Failed to send email"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"details": "Failed to send email. Try again later."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
@@ -154,6 +208,12 @@ class EmailVerification(APIView):
     renderer_classes = [CustomRenderer]
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Verify code sent to user email when signing up",
+        responses={
+            500: "Failed to send email. Try again later or try with a valid email."
+        }
+    )
     def post(self, request, *args, **kwargs):
         email = request.data.get("email")
         generated_code = UserServices.generate_random_code(5, 8)
@@ -174,13 +234,21 @@ class EmailVerification(APIView):
             return Response(status=status.HTTP_200_OK)
         elif success == 0:
             return Response(
-                {"details": "Failed to send email"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"details": "Failed to send email. Try again later or try with a valid email."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
 
 class EmailConfirmation(APIView):
     permission_classes = [AllowAny]
 
+    @swagger_auto_schema(
+        operation_summary="Confirm code sent to email for signing up",
+        responses={
+            400: "No cookies attached",
+            409: "Verification code does not match",
+        }
+    )
     def post(self, request, *args, **kwargs):
         if "email_verification_code" in request.COOKIES:
             code_cookie = request.COOKIES.get("email_verification_code")
@@ -194,16 +262,27 @@ class EmailConfirmation(APIView):
             return Response(status=status.HTTP_200_OK)
         else:
             return Response(
-                {"details": "Verification code does not match."},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"details": "Verification code does not match"},
+                status=status.HTTP_409_CONFLICT,
             )
 
 
 class TokenRefreshView(APIView):
+    """
+    Refresh tokens and returns a new pair.
+    """
+
     authentication_classes = [RefreshTokenAuthentication]
     permission_classes = [AllowAny]
     renderer_classes = [CustomRenderer]
 
+    @swagger_auto_schema(
+        operation_summary="Refresh token",
+        responses={
+            201: openapi.Response("Pair of new tokens", TokenRefreshSerializer),
+            401: "Authentication Failed",
+        },
+    )
     def post(self, request, *args, **kwargs):
 
         refresh_token = request.COOKIES.get(settings.SIMPLE_JWT["AUTH_COOKIE"]) or None
@@ -226,7 +305,13 @@ class TokenRefreshView(APIView):
                     request
                 )
                 new_tokens = UserServices.get_tokens_for_user(user)
-                return Response(new_tokens, status=status.HTTP_201_CREATED)
+                res = Response(new_tokens, status=status.HTTP_201_CREATED)
+                res.set_cookie(
+                    settings.SIMPLE_JWT["AUTH_COOKIE"],
+                    new_tokens["refresh"],
+                    max_age=60 * 60 * 24 * 14,
+                )  # 2 weeks
+                return res
 
             except InvalidToken:
                 raise AuthenticationFailed("Both tokens are invalid. Login again.", 401)
