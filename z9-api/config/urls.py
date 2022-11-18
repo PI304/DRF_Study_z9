@@ -13,12 +13,48 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.contrib import admin
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+from rest_framework import permissions
+
+api_info = openapi.Info(
+    title="Chatmate - API Doc",
+    default_version="v1",
+    description="Chatmate Application을 위한 API 문서",
+    terms_of_service="https://www.google.com/policies/terms/",
+    contact=openapi.Contact(email="earthlyz9.dev@gmail.com"),
+)
+
+SchemaView = get_schema_view(
+    api_info,
+    public=True,
+    permission_classes=([permissions.AllowAny]),
+    validators=["flex"],
+)
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("users/", include("user.urls")),
     path("auth/", include("user.auth_urls")),
     path("api-auth/", include("rest_framework.urls")),
+]
+
+urlpatterns += [
+    re_path(
+        r"^swagger(?P<format>\.json|\.yaml)/v1$",
+        SchemaView.without_ui(cache_timeout=0),
+        name="schema-json",
+    ),
+    re_path(
+        r"^swagger/$",
+        SchemaView.with_ui("swagger", cache_timeout=0),
+        name="schema-swagger-ui",
+    ),
+    re_path(
+        r"^redoc/$",
+        SchemaView.with_ui("redoc", cache_timeout=0),
+        name="schema-redoc-ui",
+    ),
 ]
